@@ -1,0 +1,17 @@
+.floating-balloon {
+  position: absolute;
+  bottom: -100px; /* start off-screen */
+  left: -50px;
+  width: 100px;
+  animation: floatBalloon 20s linear infinite;
+  z-index: 10;
+}
+
+@keyframes floatBalloon {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(120vw, -100vh); /* moves across the screen diagonally */
+  }
+}

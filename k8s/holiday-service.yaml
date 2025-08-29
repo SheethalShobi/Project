@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: holidays-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: holidays-service
+  template:
+    metadata:
+      labels:
+        app: holidays-service
+    spec:
+      containers:
+      - name: holidays-service
+        image: sheethal/holidays-service:1.0
+        ports:
+        - containerPort: 5002
+        env:
+        - name: MONGO_URL
+          valueFrom:
+            configMapKeyRef:
+              name: db-config
+              key: MONGO_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: holidays-service
+spec:
+  selector:
+    app: holidays-service
+  ports:
+    - port: 5002
+      targetPort: 5002

@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Recommendation Backend (AWS Bedrock)
+  recommendation-backend:
+    build: ./recommendation-service
+    container_name: recommendation-backend
+    ports:
+      - "5005:5005"
+    environment:
+      - FLASK_ENV=development
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - /root/.aws:/root/.aws
+
+  # Frontend
+  travel-frontend:
+    build: ./frontend
+    container_name: travel-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - recommendation-backend
+      - flight-service
+      - holidays-service
+      - user-service
+    environment:
+      - REACT_APP_BACKEND_URL=http://recommendation-backend:5005
+
+  # Flight Service
+  flight-service:
+    build: ./flight-service
+    container_name: flight-service
+    ports:
+      - "5003:5003"
+    depends_on:
+      - flight-mongo
+    environment:
+      - MONGO_URI=mongodb://flight-mongo:27017/flightdb
+
+  flight-mongo:
+    image: mongo:6
+    container_name: flight-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - flight-mongo-data:/data/db
+
+  # Holidays Service
+  holidays-service:
+    build: ./holidays-service
+    container_name: holidays-service
+    ports:
+      - "5002:5002"
+    depends_on:
+      - holidays-mongo
+    environment:
+      - MONGO_URI=mongodb://holidays-mongo:27017/holidaysdb
+
+  holidays-mongo:
+    image: mongo:6
+    container_name: holidays-mongo
+    ports:
+      - "27018:27017"
+    volumes:
+      - holidays-mongo-data:/data/db
+
+  # User Service
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "5001:5001"
+    volumes:
+      - user-db-data:/app/data
+
+volumes:
+  flight-mongo-data:
+  holidays-mongo-data:
+  user-db-data:
