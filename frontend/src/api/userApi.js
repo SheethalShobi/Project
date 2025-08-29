@@ -1,6 +1,6 @@
-import axios from 'axios';
+import axios from "axios";
 
-const BASE_URL = "http://52.207.240.219:5001"; 
+const BASE_URL = "/api/user";  // 👈 now relative, goes through Nginx
 
 export const registerUser = (data) => axios.post(`${BASE_URL}/register`, data);
 export const loginUser = (data) => axios.post(`${BASE_URL}/login`, data);

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: flight-db
+spec:
+  serviceName: "flight-db"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flight-db
+  template:
+    metadata:
+      labels:
+        app: flight-db
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:6
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flight-db
+spec:
+  selector:
+    app: flight-db
+  ports:
+    - port: 27017
+      targetPort: 27017
+  clusterIP: None
+

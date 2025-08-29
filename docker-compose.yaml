@@ -7,6 +7,8 @@ services:
     container_name: recommendation-backend
     ports:
       - "5005:5005"
+    env_file:
+      - .env
     environment:
       - FLASK_ENV=development
       - AWS_DEFAULT_REGION=us-east-1
@@ -21,14 +23,14 @@ services:
       - "80:80"
     depends_on:
       - recommendation-backend
-      - flight-service
+      - flights-service
       - holidays-service
       - user-service
     environment:
       - REACT_APP_BACKEND_URL=http://recommendation-backend:5005
 
   # Flight Service
-  flight-service:
+  flights-service:
     build: ./flight-service
     container_name: flight-service
     ports:

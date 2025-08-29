@@ -13,7 +13,7 @@ export default function Recommendation() {
 
   const handleAsk = async () => {
     try {
-      const res = await fetch(`/api/recommendation`, {
+      const res = await fetch(`/api/recommendation/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, flights }),
