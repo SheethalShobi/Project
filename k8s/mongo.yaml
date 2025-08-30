@@ -1,12 +1,27 @@
 apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-mongo
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/data/mongo  # directory on the worker node
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mongo-pvc
 spec:
-  accessModes: [ "ReadWriteOnce" ]
+  accessModes:
+    - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
+  storageClassName: ""   # <-- IMPORTANT for binding to manual PV
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -45,3 +60,4 @@ spec:
   ports:
     - port: 27017
       targetPort: 27017
+

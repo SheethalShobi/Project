@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: flights-service
-          image: project-flights-service:latest
+          image: sheethalshobi/project-flights-service:latest
           ports:
             - containerPort: 5001
           env:

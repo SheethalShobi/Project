@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: user-service
-          image: project-user-service:latest
+          image: sheethalshobi/project-user-service:latest
           ports:
             - containerPort: 5003
           env:

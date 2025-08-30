@@ -1,9 +1,105 @@
+# ----------------------------
+# StorageClass (default)
+# ----------------------------
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: standard
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+---
+# ----------------------------
+# Local PersistentVolume (for Mongo holiday-db)
+# ----------------------------
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: holiday-db-pv-2
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  local:
+    path: /mnt/mongo-holiday   # local dir on your node
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - master       # <-- replace with your node name (kubectl get nodes)
+---
+# ----------------------------
+# StatefulSet (Mongo holiday-db)
+# ----------------------------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: holiday-db
+spec:
+  serviceName: "holiday-db"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: holiday-db
+  template:
+    metadata:
+      labels:
+        app: holiday-db
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:6
+          ports:
+            - containerPort: 27017
+          env:
+            - name: MONGO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: MONGO_URL
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 5Gi
+---
+# ----------------------------
+# Headless Service (for Mongo holiday-db)
+# ----------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: holiday-db
+spec:
+  selector:
+    app: holiday-db
+  ports:
+    - port: 27017
+      targetPort: 27017
+  clusterIP: None
+---
+# ----------------------------
+# Holidays Service (App connecting to Mongo)
+# ----------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: holidays-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: holidays-service
@@ -13,16 +109,16 @@ spec:
         app: holidays-service
     spec:
       containers:
-      - name: holidays-service
-        image: sheethal/holidays-service:1.0
-        ports:
-        - containerPort: 5002
-        env:
-        - name: MONGO_URL
-          valueFrom:
-            configMapKeyRef:
-              name: db-config
-              key: MONGO_URL
+        - name: holidays-service
+          image: sheethalshobi/project-holidays-service:latest
+          ports:
+            - containerPort: 5002
+          env:
+            - name: MONGO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: MONGO_URL
 ---
 apiVersion: v1
 kind: Service
@@ -34,3 +130,4 @@ spec:
   ports:
     - port: 5002
       targetPort: 5002
+
