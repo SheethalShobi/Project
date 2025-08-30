@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: sqlite
-          image: nouchka/sqlite3:latest  # lightweight SQLite container
+          image: nouchka/sqlite3:latest
+          command: ["sh", "-c", "tail -f /dev/null"]
           volumeMounts:
             - name: sqlite-data
               mountPath: /data
