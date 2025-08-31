@@ -22,4 +22,4 @@ EXPOSE 5002
 RUN useradd --create-home appuser
 USER appuser
 
-CMD ["python", "app.py"]
+ENTRYPOINT ["python", "app.py"]
