@@ -23,9 +23,12 @@ kind: Service
 metadata:
   name: travel-frontend-service
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: travel-frontend
   ports:
-    - port: 80
-      targetPort: 80
+    - protocol: TCP
+      port: 80         # Service port
+      targetPort: 80   # Container port
+      nodePort: 30080  # NodePort (range: 30000-32767)
+

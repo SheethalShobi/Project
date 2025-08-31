@@ -1,0 +1,55 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: travel-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+  - http:
+      paths:
+      # Frontend (root app)
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: travel-frontend-service
+            port:
+              number: 80
+
+      # User service
+      - path: /api/profile
+        pathType: Prefix
+        backend:
+          service:
+            name: user-service
+            port:
+              number: 5003
+
+      # Flights service
+      - path: /api/flight
+        pathType: Prefix
+        backend:
+          service:
+            name: flights-service
+            port:
+              number: 5001
+
+      # Holidays service
+      - path: /api/holiday
+        pathType: Prefix
+        backend:
+          service:
+            name: holidays-service
+            port:
+              number: 5002
+
+      # Recommendation service
+      - path: /api/recommend
+        pathType: Prefix
+        backend:
+          service:
+            name: recommendation-backend
+            port:
+              number: 5004
+
