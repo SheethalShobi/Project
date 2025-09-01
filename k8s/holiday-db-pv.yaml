@@ -10,4 +10,5 @@ spec:
   storageClassName: standard
   hostPath:
     path: /mnt/mongo-holiday
+    type: DirectoryOrCreate
 

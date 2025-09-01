@@ -18,7 +18,7 @@ spec:
         - name: recommendation-backend
           image: sheethalshobi/project-recommendation-backend:latest
           ports:
-            - containerPort: 5004
+            - containerPort: 5005
           env:
             - name: MONGO_URI
               value: "mongodb://flight-db-0.flight-db:27017/recommendation"
@@ -35,8 +35,8 @@ spec:
     app: recommendation-backend
   ports:
     - protocol: TCP
-      port: 5004
-      targetPort: 5004
+      port: 5005
+      targetPort: 5005
   type: ClusterIP
 
 

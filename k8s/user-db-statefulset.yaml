@@ -23,23 +23,8 @@ spec:
           env:
             - name: SQLITE_FILE
               value: /data/user.db
-  volumeClaimTemplates:
-    - metadata:
-        name: sqlite-data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 1Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: user-db
-spec:
-  selector:
-    app: user-db
-  ports:
-    - port: 3306  
-      targetPort: 3306
-  clusterIP: None
+      volumes:
+        - name: sqlite-data
+          persistentVolumeClaim:
+            claimName: sqlite-data-user-db
+

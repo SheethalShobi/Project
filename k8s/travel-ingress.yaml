@@ -4,7 +4,10 @@ metadata:
   name: travel-ingress
   annotations:
     kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: / 
 spec:
+  ingressClassName: nginx
   rules:
   - http:
       paths:
@@ -18,25 +21,25 @@ spec:
               number: 80
 
       # User service
-      - path: /api/profile
+      - path: /api/user
         pathType: Prefix
         backend:
           service:
             name: user-service
             port:
-              number: 5003
+              number: 5001
 
       # Flights service
-      - path: /api/flight
+      - path: /api/flights
         pathType: Prefix
         backend:
           service:
             name: flights-service
             port:
-              number: 5001
+              number: 5003
 
       # Holidays service
-      - path: /api/holiday
+      - path: /api/holidays
         pathType: Prefix
         backend:
           service:
@@ -45,11 +48,12 @@ spec:
               number: 5002
 
       # Recommendation service
-      - path: /api/recommend
+      - path: /api/recommendation
         pathType: Prefix
         backend:
           service:
             name: recommendation-backend
             port:
-              number: 5004
+              number: 5005
+      
 

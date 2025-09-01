@@ -20,7 +20,7 @@ llm = ChatBedrock(
 # This single route now handles both health checks (GET) and recommendations (POST)
 # The route is set to '/' to match the path NGINX forwards to the backend.
 # The `methods` parameter is a list to accept both GET and POST.
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/api/recommendation', methods=['GET', 'POST'])
 def handle_recommendation_requests():
     """
     Handles both health check and recommendation requests on the root path.
