@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: travel-frontend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: flights-service
+      ports:
+        - protocol: TCP
+          port: 5003
+    - to:
+        - podSelector:
+            matchLabels:
+              app: holidays-service
+      ports:
+        - protocol: TCP
+          port: 5002
+    - to:
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 5001
+    - to:
+        - podSelector:
+            matchLabels:
+              app: recommendation-backend
+      ports:
+        - protocol: TCP
+          port: 5005
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+

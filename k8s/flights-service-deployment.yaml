@@ -31,14 +31,14 @@ spec:
               memory: 512Mi
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 5003
             initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /
+              path: /readyz
               port: 5003
             initialDelaySeconds: 5
             periodSeconds: 5

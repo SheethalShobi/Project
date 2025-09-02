@@ -21,5 +21,20 @@ def book_flight():
     flights.insert_one(data)
     return jsonify({"message":"Flight booked successfully"})
 
+
+@app.route("/")
+def index():
+    return jsonify({"status": "ok"}), 200
+
+@app.route("/healthz")
+def healthz():
+    return jsonify({"status": "healthy"}), 200
+
+@app.route("/readyz")
+def readyz():
+    return jsonify({"status": "ready"}), 200
+
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5003, debug=True)

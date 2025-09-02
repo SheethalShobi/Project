@@ -5,7 +5,8 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/rewrite-target: / 
+    # Rewrite so backend receives correct path
+    #nginx.ingress.kubernetes.io/rewrite-target: / #changed from $2 to /
 spec:
   ingressClassName: nginx
   rules:
@@ -19,41 +20,4 @@ spec:
             name: travel-frontend-service
             port:
               number: 80
-
-      # User service
-      - path: /api/user
-        pathType: Prefix
-        backend:
-          service:
-            name: user-service
-            port:
-              number: 5001
-
-      # Flights service
-      - path: /api/flights
-        pathType: Prefix
-        backend:
-          service:
-            name: flights-service
-            port:
-              number: 5003
-
-      # Holidays service
-      - path: /api/holidays
-        pathType: Prefix
-        backend:
-          service:
-            name: holidays-service
-            port:
-              number: 5002
-
-      # Recommendation service
-      - path: /api/recommendation
-        pathType: Prefix
-        backend:
-          service:
-            name: recommendation-backend
-            port:
-              number: 5005
-      
 
