@@ -137,4 +137,4 @@ jobs:
       # -------------------
       - name: Deploy Kubernetes Resources
         run: |
-          kubectl --kubeconfig=kubeconfig apply -f k8s/ --recursive
+          kubectl --kubeconfig=kubeconfig apply -f k8s/ --recursive=false
