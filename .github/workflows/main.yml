@@ -127,12 +127,7 @@ jobs:
         with:
           version: 'v1.30.0'
 
-      - name: Configure kubeconfig
-        run: |
-          echo "${{ secrets.KUBECONFIG_SECRET }}" | base64 --decode > kubeconfig
-          export KUBECONFIG=$PWD/kubeconfig
-
-      # -------------------
+           # -------------------
       # Deploy all Kubernetes resources
       # -------------------
       - name: Deploy Kubernetes Resources
