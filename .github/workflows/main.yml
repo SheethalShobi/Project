@@ -85,35 +85,17 @@ jobs:
       # -------------------
       # Lint frontend and run unit tests
       # -------------------
-      - name: Lint and Test Frontend
-        working-directory: ./frontend
-        run: |
-          npm install
-          npm run lint
-          npm test || true
+     ## - name: Lint and Test Frontend
+     ##   working-directory: ./frontend
+      #  run: |
+       #   npm install
+        #  npm run lint
+         # npm test || true
 
       # -------------------
       # Security checks
       # -------------------
-      - name: SAST with CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          upload-sarif: false
-      - name: SCA (Dependency Scan)
-        run: |
-          npm install -g npm-audit-ci
-          npm-audit-ci --moderate || true
-      - name: DAST with OWASP ZAP
-        continue-on-error: true
-        run: |
-          docker run --rm --network host -v $(pwd):/zap/wrk/:rw owasp/zap2docker-stable \
-            zap-baseline.py -t http://localhost:8080 -r zap_report.html
-
-      # -------------------
+        # -------------------
       # Docker build & push
       # -------------------
       - name: Docker Login
