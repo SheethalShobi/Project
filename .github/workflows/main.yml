@@ -107,7 +107,6 @@ jobs:
       - name: Build Docker Images
         run: |
           docker build -t $FRONTEND_IMAGE ./frontend
-          docker build -t $BACKEND_IMAGE ./backend
           docker build -t $FLIGHT_IMAGE ./flight-service
           docker build -t $HOLIDAY_IMAGE ./holidays-service
           docker build -t $RECOMMEND_IMAGE ./recommendation-service
