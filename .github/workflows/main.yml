@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*.*.*'
   pull_request:
     branches:
       - main
@@ -13,14 +11,25 @@ on:
 jobs:
   build-and-deploy:
     runs-on: self-hosted
-    
+
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+
     env:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-      KUBECONFIG_SECRET: ${{ secrets.KUBECONFIG }}
-    
+      FRONTEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+      BACKEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
+      FLIGHT_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/flights-service:latest
+      HOLIDAY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/holidays-service:latest
+      RECOMMEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/recommendation-backend:latest
+      USER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
+
     steps:
-      - name: Checkout repo
+      # -------------------
+      # Checkout repository
+      # -------------------
+      - name: Checkout code
         uses: actions/checkout@v3
 
       # -------------------
@@ -32,7 +41,7 @@ jobs:
           node-version: '20'
 
       # -------------------
-      # Setup Python for backend services
+      # Setup Python for backend
       # -------------------
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -40,68 +49,99 @@ jobs:
           python-version: '3.11'
 
       # -------------------
-      # Install dependencies & run tests for backend services
+      # Install backend dependencies
       # -------------------
-      - name: Install & Test Backend Services
+      - name: Install Backend Dependencies
+        working-directory: ./flight-service
         run: |
-          for service in flight-service recommendation-service user-service holidays-service; do
-            echo "=== $service ==="
-            cd $service
-            if [ -f "requirements.txt" ]; then
-              python -m pip install --upgrade pip
-              pip install -r requirements.txt
-              pytest || true
-            fi
-            cd ..
-          done
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Install Holidays Service Dependencies
+        working-directory: ./holidays-service
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Install Recommendation Service Dependencies
+        working-directory: ./recommendation-service
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Install User Service Dependencies
+        working-directory: ./user-service
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       # -------------------
-      # Lint and test frontend
+      # Run backend tests (optional)
       # -------------------
-      - name: Lint Frontend
+      - name: Run Backend Tests
         run: |
-          cd frontend
+          cd flight-service && pytest || true
+          cd ../holidays-service && pytest || true
+          cd ../recommendation-service && pytest || true
+          cd ../user-service && pytest || true
+
+      # -------------------
+      # Lint frontend and run unit tests
+      # -------------------
+      - name: Lint and Test Frontend
+        working-directory: ./frontend
+        run: |
           npm install
-          npm run lint || true
+          npm run lint
           npm test || true
-          cd ..
 
       # -------------------
-      # Docker login
+      # Security checks
       # -------------------
-      - name: Log in to Docker Hub
+      - name: SAST with CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          upload-sarif: false
+      - name: SCA (Dependency Scan)
+        run: |
+          npm install -g npm-audit-ci
+          npm-audit-ci --moderate || true
+      - name: DAST with OWASP ZAP
+        continue-on-error: true
+        run: |
+          docker run --rm --network host -v $(pwd):/zap/wrk/:rw owasp/zap2docker-stable \
+            zap-baseline.py -t http://localhost:8080 -r zap_report.html
+
+      # -------------------
+      # Docker build & push
+      # -------------------
+      - name: Docker Login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Verify Docker login
-        run: docker info
-
-      # -------------------
-      # Build Docker images
-      # -------------------
       - name: Build Docker Images
         run: |
-          docker build -t $DOCKERHUB_USERNAME/frontend:latest ./frontend
-          docker build -t $DOCKERHUB_USERNAME/flight-service:latest ./flight-service
-          docker build -t $DOCKERHUB_USERNAME/recommendation-service:latest ./recommendation-service
-          docker build -t $DOCKERHUB_USERNAME/user-service:latest ./user-service
-          docker build -t $DOCKERHUB_USERNAME/holidays-service:latest ./holidays-service
+          docker build -t $FRONTEND_IMAGE ./frontend
+          docker build -t $BACKEND_IMAGE ./backend
+          docker build -t $FLIGHT_IMAGE ./flight-service
+          docker build -t $HOLIDAY_IMAGE ./holidays-service
+          docker build -t $RECOMMEND_IMAGE ./recommendation-service
+          docker build -t $USER_IMAGE ./user-service
 
-      # -------------------
-      # Push Docker images
-      # -------------------
       - name: Push Docker Images
         run: |
-          docker push $DOCKERHUB_USERNAME/frontend:latest
-          docker push $DOCKERHUB_USERNAME/flight-service:latest
-          docker push $DOCKERHUB_USERNAME/recommendation-service:latest
-          docker push $DOCKERHUB_USERNAME/user-service:latest
-          docker push $DOCKERHUB_USERNAME/holidays-service:latest
+          docker push $FRONTEND_IMAGE
+          docker push $BACKEND_IMAGE
+          docker push $FLIGHT_IMAGE
+          docker push $HOLIDAY_IMAGE
+          docker push $RECOMMEND_IMAGE
+          docker push $USER_IMAGE
 
       # -------------------
-      # Setup kubectl
+      # Kubernetes setup
       # -------------------
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
@@ -110,23 +150,12 @@ jobs:
 
       - name: Configure kubeconfig
         run: |
-          echo "${KUBECONFIG_SECRET}" > kubeconfig
+          echo "${{ secrets.KUBECONFIG_SECRET }}" | base64 --decode > kubeconfig
           export KUBECONFIG=$PWD/kubeconfig
 
       # -------------------
-      # Deploy backend services
+      # Deploy all Kubernetes resources
       # -------------------
-      - name: Deploy Services to Kubernetes
+      - name: Deploy Kubernetes Resources
         run: |
-         for service in flights-service recommendation-backend user-service holidays-service frontend; do
-            kubectl --kubeconfig=kubeconfig apply -f k8s/${service}-deployment.yaml
-            kubectl --kubeconfig=kubeconfig apply -f k8s/${service}.yaml
-         done
-
-
-      # -------------------
-      # Deploy frontend
-      # -------------------
-      - name: Deploy Frontend
-        run: |
-          kubectl --kubeconfig=kubeconfig apply -f k8s/frontend.yaml
+          kubectl --kubeconfig=kubeconfig apply -f k8s/ --recursive
