@@ -1,163 +1,131 @@
-name: Full CI/CD Pipeline with Kubernetes
+name: CI/CD Pipeline
 
 on:
-  pull_request:
-    branches: [ main ]
   push:
-    branches: [ "feature/**", main ]
+    branches:
+      - main
     tags:
       - 'v*.*.*'
-  release:
-    types: [published]
- 
-env:
-  K8S_DEV_NAMESPACE: travel-dev
-  K8S_PROD_NAMESPACE: travel
+  pull_request:
+    branches:
+      - main
 
 jobs:
-
-  # -------------------
-  # 1️⃣ CI: Test, Build, Scan, Push Images (Docker Hub)
-  # -------------------
-  ci-build:
-    runs-on: [self-hosted, linux, docker]
-    strategy:
-      matrix:
-        service: [ "travel-frontend", "flights-service", "recommendation-backend", "user-service", "holiday-service" ]
+  build-and-deploy:
+    runs-on: self-hosted
+    
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+      KUBECONFIG_SECRET: ${{ secrets.KUBECONFIG }}
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      # Install dependencies and run tests
-      - name: Run tests
+      # -------------------
+      # Setup Node.js for frontend
+      # -------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      # -------------------
+      # Setup Python for backend services
+      # -------------------
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # -------------------
+      # Install dependencies & run tests for backend services
+      # -------------------
+      - name: Install & Test Backend Services
         run: |
-          cd ${{ matrix.service }}
-          if [ -f "package.json" ]; then
-            npm ci
-            npm run test || echo "No tests defined"
-          elif [ -f "requirements.txt" ]; then
-            pip install -r requirements.txt
-            pytest || echo "No tests defined"
-          fi
+          for service in flight-service recommendation-service user-service holidays-service; do
+            echo "=== $service ==="
+            cd $service
+            if [ -f "requirements.txt" ]; then
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+              pytest || true
+            fi
+            cd ..
+          done
 
-      # Docker login (Docker Hub)
-      - name: Docker login
-        uses: docker/login-action@v3
+      # -------------------
+      # Lint and test frontend
+      # -------------------
+      - name: Lint Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run lint || true
+          npm test || true
+          cd ..
+
+      # -------------------
+      # Docker login
+      # -------------------
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      # Build & push Docker images to Docker Hub
-      - name: Build & Push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./${{ matrix.service }}
-          file: ./${{ matrix.service }}/Dockerfile
-          push: true
-          tags: |
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:pr-${{ github.run_id }}
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:dev
+      - name: Verify Docker login
+        run: docker info
 
-      # Scan Docker image
-      - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:dev
-          format: table
-          exit-code: 0
-
-  # -------------------
-  # 2️⃣ Release: Build Stable Images
-  # -------------------
-  release-build:
-    runs-on: [self-hosted, linux, docker]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      matrix:
-        service: [ "travel-frontend", "flights-service", "recommendation-backend", "user-service", "holiday-service" ]
-    steps:
-      - uses: actions/checkout@v4
-
-      # Docker login (Docker Hub)
-      - name: Docker login
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # Build & push stable Docker images
-      - name: Build & Push Stable Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./${{ matrix.service }}
-          file: ./${{ matrix.service }}/Dockerfile
-          push: true
-          tags: |
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:${{ github.ref_name }}
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:stable
-
-  # -------------------
-  # 3️⃣ Deploy to Dev
-  # -------------------
-  deploy-dev:
-    runs-on: [self-hosted, linux]
-    if: github.ref == 'refs/heads/main'
-    needs: [ci-build]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Apply all Kubernetes resources to Dev
-        env:
-          KUBECONFIG: /home/runner/.kube/config
+      # -------------------
+      # Build Docker images
+      # -------------------
+      - name: Build Docker Images
         run: |
-          # ConfigMaps & Secrets
-          kubectl apply -f k8s/configmaps/ -n $K8S_DEV_NAMESPACE
-          kubectl apply -f k8s/secrets/ -n $K8S_DEV_NAMESPACE
+          docker build -t $DOCKERHUB_USERNAME/frontend:latest ./frontend
+          docker build -t $DOCKERHUB_USERNAME/flight-service:latest ./flight-service
+          docker build -t $DOCKERHUB_USERNAME/recommendation-service:latest ./recommendation-service
+          docker build -t $DOCKERHUB_USERNAME/user-service:latest ./user-service
+          docker build -t $DOCKERHUB_USERNAME/holidays-service:latest ./holidays-service
 
-          # Persistent Volumes
-          kubectl apply -f k8s/pv/ -n $K8S_DEV_NAMESPACE
-
-          # Deployments & StatefulSets
-          kubectl apply -f k8s/deployments/ -n $K8S_DEV_NAMESPACE
-          kubectl apply -f k8s/statefulsets/ -n $K8S_DEV_NAMESPACE
-
-          # Services
-          kubectl apply -f k8s/services/ -n $K8S_DEV_NAMESPACE
-
-          # Ingress
-          kubectl apply -f k8s/ingress/ -n $K8S_DEV_NAMESPACE
-
-          # Horizontal Pod Autoscalers
-          kubectl apply -f k8s/hpa/ -n $K8S_DEV_NAMESPACE
-
-          # Network Policies
-          kubectl apply -f k8s/networkpolicies/ -n $K8S_DEV_NAMESPACE
-
-  # -------------------
-  # 4️⃣ Deploy to Prod
-  # -------------------
-  deploy-prod:
-    runs-on: [self-hosted, linux]
-    if: github.event_name == 'release'
-    needs: [release-build]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Apply all Kubernetes resources to Prod
-        env:
-          KUBECONFIG: /home/runner/.kube/config
+      # -------------------
+      # Push Docker images
+      # -------------------
+      - name: Push Docker Images
         run: |
-          kubectl apply -f k8s/configmaps/ -n $K8S_PROD_NAMESPACE
-          kubectl apply -f k8s/secrets/ -n $K8S_PROD_NAMESPACE
-          kubectl apply -f k8s/pv/ -n $K8S_PROD_NAMESPACE
-          kubectl apply -f k8s/deployments/ -n $K8S_PROD_NAMESPACE
-          kubectl apply -f k8s/statefulsets/ -n $K8S_PROD_NAMESPACE
-          kubectl apply -f k8s/services/ -n $K8S_PROD_NAMESPACE
-          kubectl apply -f k8s/ingress/ -n $K8S_PROD_NAMESPACE
-          kubectl apply -f k8s/hpa/ -n $K8S_PROD_NAMESPACE
-          kubectl apply -f k8s/networkpolicies/ -n $K8S_PROD_NAMESPACE
+          docker push $DOCKERHUB_USERNAME/frontend:latest
+          docker push $DOCKERHUB_USERNAME/flight-service:latest
+          docker push $DOCKERHUB_USERNAME/recommendation-service:latest
+          docker push $DOCKERHUB_USERNAME/user-service:latest
+          docker push $DOCKERHUB_USERNAME/holidays-service:latest
+
+      # -------------------
+      # Setup kubectl
+      # -------------------
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.30.0'
+
+      - name: Configure kubeconfig
+        run: |
+          echo "${KUBECONFIG_SECRET}" > kubeconfig
+          export KUBECONFIG=$PWD/kubeconfig
+
+      # -------------------
+      # Deploy backend services
+      # -------------------
+      - name: Deploy Backend Services
+        run: |
+          for service in flight-service recommendation-service user-service holidays-service; do
+            kubectl --kubeconfig=kubeconfig apply -f k8s/${service}-deployment.yaml
+            kubectl --kubeconfig=kubeconfig apply -f k8s/${service}.yaml
+          done
+
+      # -------------------
+      # Deploy frontend
+      # -------------------
+      - name: Deploy Frontend
+        run: |
+          kubectl --kubeconfig=kubeconfig apply -f k8s/frontend.yaml
