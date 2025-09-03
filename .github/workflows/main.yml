@@ -19,7 +19,6 @@ jobs:
 
     env:
       FRONTEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
-      BACKEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
       FLIGHT_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/flights-service:latest
       HOLIDAY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/holidays-service:latest
       RECOMMEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/recommendation-backend:latest
@@ -115,7 +114,6 @@ jobs:
       - name: Push Docker Images
         run: |
           docker push $FRONTEND_IMAGE
-          docker push $BACKEND_IMAGE
           docker push $FLIGHT_IMAGE
           docker push $HOLIDAY_IMAGE
           docker push $RECOMMEND_IMAGE
