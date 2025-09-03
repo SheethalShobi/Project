@@ -116,12 +116,13 @@ jobs:
       # -------------------
       # Deploy backend services
       # -------------------
-      - name: Deploy Backend Services
+      - name: Deploy Services to Kubernetes
         run: |
-          for service in flight-service recommendation-service user-service holidays-service; do
+         for service in flights-service recommendation-backend user-service holidays-service frontend; do
             kubectl --kubeconfig=kubeconfig apply -f k8s/${service}-deployment.yaml
             kubectl --kubeconfig=kubeconfig apply -f k8s/${service}.yaml
-          done
+         done
+
 
       # -------------------
       # Deploy frontend
