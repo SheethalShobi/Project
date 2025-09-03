@@ -5,12 +5,11 @@ on:
     branches: [ main ]
   push:
     branches: [ "feature/**", main ]
-  release:
-    types: [published]
-  push:
     tags:
       - 'v*.*.*'
-
+  release:
+    types: [published]
+ 
 env:
   K8S_DEV_NAMESPACE: travel-dev
   K8S_PROD_NAMESPACE: travel
